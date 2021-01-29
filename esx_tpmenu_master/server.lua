@@ -1,5 +1,0 @@
-TriggerEvent('es:addGroupCommand', 'tpmenu', 'admin', function(source, args, user)
-		TriggerClientEvent("tpmenu:open", source)
-end, function(source, args, user)
-	TriggerClientEvent('chatMessage', source, "SYSTEM", {255, 0, 0}, "Insufficient Permissions.")
-end, {help = "Open teleport menu for admins"})
