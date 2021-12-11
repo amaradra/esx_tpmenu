@@ -4,11 +4,11 @@ game 'gta5'
 
 description 'ESX TP Menu'
 
-version '1.1.0'
+version '1.2.0'
 
-client_script "client.lua"
-server_script "server.lua"
-
-dependencies {
-	'esx_extended'
+client_scripts {
+	'client.lua',
+	'config.lua'
 }
+
+server_script 'server.lua'

@@ -1,5 +1,6 @@
---[[ TELEPORT MENU BY ADRA ]]--
 ESX = nil
+lastlocation = nil
+debuglocation = nil
 
 Citizen.CreateThread(function()
 	while ESX == nil do
@@ -8,67 +9,125 @@ Citizen.CreateThread(function()
 	end
 end)
 
-local elements = {}
-local lastlocation = nil
-table.insert(elements, { label = 'Last location' })
-
---[[
-    TELEPORT MENU COORDINATES
-    Below you have lines of code that you need to change based on your use
-    LABEL - label of location that you can find in menu
-    OTHER lines are the actual coordinates
-]]--
-
-table.insert(elements, { label = 'Police station', x = 425.1, y = -979.5, z = 30.7  })
-table.insert(elements, { label = 'Airport Los Santos', x = -1037.51, y = -2963.24, z = 13.95 })
-table.insert(elements, { label = 'Airport Sandy Shores', x = 1718.47, y = 3254.40, z = 41.14})
-table.insert(elements, { label = 'Mount Chiliad', x = 501.76, y = 5604.28, z = 797.91})
-table.insert(elements, { label = 'Vinewood Sign', x = 663.41, y = 1217.21, z = 322.94})
-table.insert(elements, { label = 'Benny\'s', x = -205.73, y = -1303.71, z = 31.24 })
-table.insert(elements, { label = 'Los Santos Customs', x = -360.91, y = -129.46, z = 38.70 })
-table.insert(elements, { label = 'Top of Maze Bank',  x = -75.20, y = -818.95, z = 326.18 })
-
---[[
-    TELEPORT MENU LOCALE
-    You can change notification messages based on your language
-]]--
-
-local Locale = {
-    ['teleported']  = 'You have teleported to ~b~',
-    ['teleported_last']  = 'You have teleported to ~r~Last Location',
-    ['teleported_last_empty']  = 'You didn\'t visit any location with this menu.',
-}
-
 RegisterNetEvent('tpmenu:open')
 AddEventHandler('tpmenu:open', function()
-    ESX.UI.Menu.CloseAll()					--Close everything ESX.Menu related	
-    
+    ESX.UI.Menu.CloseAll() --Close everything ESX.Menu related	
+    local elements = {}
+
+    table.insert(elements, { label = 'Teleport To Waypoint', value= 'waypoint'})
+    table.insert(elements, { label = 'Locations', value= 'loc'})
+
+    if Settings.DebugLocation then 
+        if debuglocation ~= nil then
+            table.insert(elements, { label = 'Debug Location', value= 'debugloc'}) 
+        end
+        table.insert(elements, { label = 'Set Debug Location', value= 'setdebugloc'}) 
+    end
+
+    if lastlocation ~= nil 
+        then table.insert(elements, { label = 'Last location', value= 'lastloc'}) 
+    end
+
+    table.insert(elements, { label = 'Print Coords', value= 'printcoords'})
+
     ESX.UI.Menu.Open(
         'default', GetCurrentResourceName(), 'tpmenu',
-        {
-            title    = 'Teleport menu',
-            align    = 'bottom-right',
-            elements = elements
-        },
-        function(data, menu)						--on data selection
-            if data.current.label == "Last location" then
-                if lastlocation ~= nil then  
-                    ESX.Game.Teleport(PlayerPedId(), lastlocation) 
-                    ESX.ShowNotification(Locale['teleported_last'])
-                else 
-                    ESX.ShowNotification(Locale['teleported_last_empty'])
-                end
-            else
-                lastlocation = GetEntityCoords(GetPlayerPed(-1))
-                local coords = { x = data.current.x,  y = data.current.y, z = data.current.z}
-                ESX.Game.Teleport(PlayerPedId(), coords)
-                ESX.ShowNotification(Locale['teleported'] .. data.current.label)
+    {
+        title    = 'Teleport menu',
+        align    = 'bottom-right',
+        elements = elements
+    },
+    function(data, menu) --on data selection
+        if data.current.value == "lastloc" then
+            if lastlocation ~= nil then  
+                ESX.Game.Teleport(PlayerPedId(), lastlocation) 
+                ESX.ShowNotification(Locale['teleported_last'])
+            else 
+                ESX.ShowNotification(Locale['teleported_last_empty'])
             end
-            menu.close()							--close menu after selection
-          end,
-          function(data, menu)
+        elseif data.current.value == "setdebugloc" then
+            debuglocation = GetEntityCoords(GetPlayerPed(-1))
+            ESX.ShowNotification(Locale['teleported_debug'])
             menu.close()
-          end
-        )
-    
+        elseif data.current.value == "waypoint" then
+            TeleportWaypoint()
+        elseif data.current.value == "debugloc" then        
+            lastlocation = GetEntityCoords(GetPlayerPed(-1))
+            ESX.Game.Teleport(PlayerPedId(), debuglocation) 
+            ESX.ShowNotification(Locale['teleported'] .. data.current.label)
+        elseif data.current.value == "loc" then   
+            OpenLocationsMenu()
+        elseif data.current.value == "printcoords" then
+            PrintCoords()
+        end
+    end,
+    function(data, menu)
+        menu.close()
+    end)
 end)
+
+
+function OpenLocationsMenu()
+    local elements = {}
+
+    for k,v in ipairs(Locations) do
+        table.insert(elements, { label = v.label, x = v.x, y = v.y, z = v.z })
+    end
+    
+    ESX.UI.Menu.Open(
+        'default', GetCurrentResourceName(), 'tpmenu_locations',
+    {
+        title    = 'Teleport locations',
+        align    = 'bottom-right',
+        elements = elements
+    },
+    function(data, menu) --on data selection
+        lastlocation = GetEntityCoords(GetPlayerPed(-1))
+        local coords = { x = data.current.x,  y = data.current.y, z = data.current.z}
+        ESX.Game.Teleport(PlayerPedId(), coords)
+        ESX.ShowNotification(Locale['teleported'] .. data.current.label)
+    end,
+    function(data, menu)
+        menu.close()
+    end)
+end
+
+function TeleportWaypoint()
+	local playerPed = GetPlayerPed(-1)
+	local blip = GetFirstBlipInfoId(8)
+
+	if DoesBlipExist(blip) then
+		local waypointCoords = GetBlipInfoIdCoord(blip)
+		for height = 1, 1000 do
+			SetPedCoordsKeepVehicle(PlayerPedId(), waypointCoords["x"], waypointCoords["y"], height + 0.0)
+			local foundGround, zPos = GetGroundZFor_3dCoord(waypointCoords["x"], waypointCoords["y"], height + 0.0)
+
+			if foundGround then
+				SetPedCoordsKeepVehicle(PlayerPedId(), waypointCoords["x"], waypointCoords["y"], height + 0.0)
+				break
+			end
+			Citizen.Wait(5)
+		end
+        ESX.ShowNotification(Locale['teleported'] .. 'Waypoint')
+	else
+        ESX.ShowNotification(Locale['no_waypoint'])
+	end
+end
+
+function PrintCoords()
+    local playerPed = PlayerPedId()
+
+	local pos      = GetEntityCoords(playerPed)
+	local heading  = GetEntityHeading(playerPed)
+	local finalPos = {}
+
+	-- round to 2 decimals
+	finalPos.x = string.format("%.2f", pos.x)
+	finalPos.y = string.format("%.2f", pos.y)
+	finalPos.z = string.format("%.2f", pos.z)
+	finalPos.h = string.format("%.2f", heading)
+
+	local formattedText = "x = " .. finalPos.x .. ", y = " .. finalPos.y .. ", z = " .. finalPos.z .. ', h = ' .. finalPos.h
+	TriggerEvent('chatMessage', 'SYSTEM', { 0, 0, 0 }, formattedText)
+	print(formattedText)
+end
